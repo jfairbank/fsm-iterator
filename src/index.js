@@ -5,12 +5,36 @@ export default function fsmIterator(initialState, definition) {
 
   let currentState = initialState;
   let done = false;
+  let returnValue;
+  let handledReturn = false;
+
+  function setReturnValue(value) {
+    returnValue = { value };
+  }
+
+  function consumeReturnValue() {
+    if (returnValue) {
+      const { value } = returnValue;
+      returnValue = undefined;
+
+      return value;
+    }
+
+    return undefined;
+  }
 
   function processResult(result, handlerName) {
     if (done) {
+      if (returnValue) {
+        return {
+          value: consumeReturnValue(),
+          done: true,
+        };
+      }
+
       return {
         value: undefined,
-        done,
+        done: true,
       };
     }
 
@@ -25,6 +49,22 @@ export default function fsmIterator(initialState, definition) {
     fsm.previousState = currentState;
     currentState = result.next || currentState;
     done = !!result.done;
+
+    if (done && hasOwnProperty.call(result, 'value')) {
+      consumeReturnValue();
+
+      return {
+        value: result.value,
+        done: true,
+      };
+    }
+
+    if (done && returnValue) {
+      return {
+        value: consumeReturnValue(),
+        done: true,
+      };
+    }
 
     return {
       value: result.value,
@@ -55,6 +95,24 @@ export default function fsmIterator(initialState, definition) {
     },
 
     return(value) {
+      if (!returnValue) {
+        setReturnValue(value);
+      }
+
+      if (!handledReturn && hasOwnProperty.call(fsm, 'return')) {
+        handledReturn = true;
+
+        const result = fsm.return(value, fsm);
+        return processResult(result, 'return');
+      }
+
+      if (returnValue) {
+        return {
+          value: consumeReturnValue(),
+          done: true,
+        };
+      }
+
       return {
         value,
         done: true,

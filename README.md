@@ -37,10 +37,16 @@ iterator by including the `done` property set to `true`. If you don't supply the
 you want to loop on one thing, but if you have multiple states, then remember to
 use the `next` property.
 
-You may also include a `throw` function to handle the `throw` method of the
-iterator. It takes the thrown error as the first argument and the finite state
-machine definition as the second argument. If you don't supply a `throw`
-function, then your iterator will stop, rethrowing the error.
+You may include a `throw` function to handle the `throw` method of the iterator.
+It takes the thrown error as the first argument and the finite state machine
+definition as the second argument. If you don't supply a `throw` function, then
+your iterator will stop, rethrowing the error.
+
+You may intercept the iterator's `return` method by supplying a `return`
+function that receives the passed-in return value as the first argument and the
+finite state machine definition as the second argument. You can return your own
+return value or keep your iterator returning. This is similar to handling the
+`finally` block in a `try..finally` statement in a ES2015 generator function.
 
 ```js
 // ES2015 modules
@@ -78,6 +84,13 @@ const definition = {
     next: FOO,
   }),
 
+  return(value, fsm) {
+    return {
+      value: 'my own return',
+      done: true,
+    }
+  },
+
   throw: (e, fsm) => ({
     value: `${e.message} : ${fsm.previousState}`,
     next: FOO,
@@ -107,7 +120,7 @@ iterator = fsmIterator(FOO, definition);
 
 iterator.next();            // { value: 'foo', done: false }
 iterator.next(21);          // { value: 42, done: false }
-iterator.return('the end'); // { value: 'the end', done: true }
+iterator.return('the end'); // { value: 'my own return', done: true }
 ```
 
 #### Equivalent ES2015 Generator
@@ -149,6 +162,8 @@ function* myGenerator() {
       setState(FOO);
 
       yield `${e.message} : ${previousState}`;
+    } finally {
+      return 'my own return';
     }
   }
 }
